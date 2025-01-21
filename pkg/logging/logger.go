@@ -1,7 +1,6 @@
 package logging
 
 import (
-	"context"
 	"os"
 	"sync"
 
@@ -118,27 +117,4 @@ func DefaultLogger() *zap.SugaredLogger {
 		defaultLogger = NewLogger(conf)
 	})
 	return defaultLogger
-}
-
-// WithLogger creates a new context with the provided logger attached.
-func WithLogger(ctx context.Context, logger *zap.SugaredLogger) context.Context {
-	//if gCtx, ok := ctx.(*gin.Context); ok {
-	//	ctx = gCtx.Request.Context()
-	//}
-	return context.WithValue(ctx, loggerKey, logger)
-}
-
-// FromContext returns the logger stored in the context. If no such logger
-// exists, a default logger is returned.
-func FromContext(ctx context.Context) *zap.SugaredLogger {
-	if ctx == nil {
-		return DefaultLogger()
-	}
-	//if gCtx, ok := ctx.(*gin.Context); ok && gCtx != nil {
-	//	ctx = gCtx.Request.Context()
-	//}
-	if logger, ok := ctx.Value(loggerKey).(*zap.SugaredLogger); ok {
-		return logger
-	}
-	return DefaultLogger()
 }

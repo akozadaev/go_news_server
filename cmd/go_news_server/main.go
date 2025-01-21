@@ -1,12 +1,13 @@
 package main
 
 import (
-	"context"
-	"errors"
 	"fmt"
+	"github.com/gofiber/fiber/v2"
+	"github.com/joho/godotenv"
+	"go_news_server/internal/routes"
+	"go_news_server/internal/server/utils"
 	"go_news_server/pkg/config"
 	"go_news_server/pkg/logging"
-	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"time"
@@ -69,50 +70,35 @@ func runApplication() {
 		}),
 		fx.StopTimeout(serverConfig.ServerConfig.GracefulShutdown*time.Second),
 		fx.Provide(
-			// setup database
-			//database.NewDatabase,
-			// server
 			newServer,
-			//shortenRepository.NewShortenRepository,
-			//shorten.NewHandler,
 		),
 		fx.Invoke(
-		//shorten.RouteV1,
-		//func(r *gin.Engine) {},
+			//shorten.RouteV1,
+			func(r *fiber.App) {},
 		),
 	)
+
 	app.Run()
 }
 
-func newServer(lc fx.Lifecycle, cfg *config.Config) /**gin.Engine*/ {
-	//gin.SetMode(gin.DebugMode)
-	//r := gin.New()
-	//
-	//r.Use(middleware.CorsMiddleware())
-	//r.Use(middleware.TimeoutMiddleware(cfg.ServerConfig.WriteTimeout))
-	//r.Use(middleware.LoggingMiddleware())
+func newServer(lc fx.Lifecycle, cfg *config.Config) *fiber.App {
+	logger := logging.DefaultLogger()
 
-	srv := &http.Server{
-		Addr: fmt.Sprintf(":%d", cfg.ServerConfig.Port),
-		//Handler:      r,
-		ReadTimeout:  cfg.ServerConfig.ReadTimeout,
-		WriteTimeout: cfg.ServerConfig.WriteTimeout,
+	if err := godotenv.Load(".env"); err != nil {
+		logger.Errorw("Dont reading .env file")
 	}
 
-	lc.Append(fx.Hook{
-		OnStart: func(ctx context.Context) error {
-			logging.FromContext(ctx).Infof("Start to rest api server :%d", cfg.ServerConfig.Port)
-			go func() {
-				if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-					logging.DefaultLogger().Errorw("failed to close http server", "err", err)
-				}
-			}()
-			return nil
-		},
-		OnStop: func(ctx context.Context) error {
-			logging.FromContext(ctx).Info("Stopped rest api server")
-			return srv.Shutdown(ctx)
-		},
-	})
-	//return r
+	config := config.FiberConfig()
+	app := fiber.New(config)
+
+	routes.NotFoundRoute(app) // Register a route for API Docs (Swagger).
+
+	// Start server (with or without graceful shutdown).
+	if os.Getenv("STAGE_STATUS") == "dev" {
+		utils.StartServer(app, logger)
+	} else {
+		utils.StartServerWithGracefulShutdown(app, logger)
+	}
+	logger.Infof("Start to rest api server :%d", cfg.ServerConfig.Port)
+	return app
 }
