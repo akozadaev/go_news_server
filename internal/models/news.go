@@ -3,6 +3,7 @@ package models
 import (
 	"gopkg.in/reform.v1"
 	"gopkg.in/reform.v1/parse"
+	"strings"
 )
 
 type newsTableType struct {
@@ -15,18 +16,19 @@ func (n newsTableType) Schema() string {
 }
 
 func (n newsTableType) Name() string {
-	//TODO implement me
-	panic("implement me")
+	return n.s.SQLName
 }
 
 func (n newsTableType) Columns() []string {
-	//TODO implement me
-	panic("implement me")
+	return []string{
+		"id",
+		"title",
+		"content",
+	}
 }
 
 func (n newsTableType) NewStruct() reform.Struct {
-	//TODO implement me
-	panic("implement me")
+	return new(News)
 }
 
 type FieldInfo struct {
@@ -58,8 +60,8 @@ var NewsTable = &newsTableType{
 		SQLName: "news",
 		Fields: []parse.FieldInfo{
 			{Name: "Id", Type: "int32", Column: "id"},
-			{Name: "Title", Type: "*int32", Column: "title"},
-			{Name: "Content", Type: "string", Column: "ontent"},
+			{Name: "Title", Type: "string", Column: "title"},
+			{Name: "Content", Type: "string", Column: "content"},
 		},
 		PKFieldIndex: 0,
 	},
@@ -82,13 +84,15 @@ func (n News) Columns() []string {
 }
 
 func (n News) NewStruct() reform.Struct {
-	//TODO implement me
-	panic("implement me")
+	return new(News)
 }
 
 func (n News) String() string {
-	//TODO implement me
-	panic("implement me")
+	res := make([]string, 3)
+	res[0] = "ID: " + reform.Inspect(n.ID, true)
+	res[1] = "Title: " + reform.Inspect(n.Title, true)
+	res[2] = "Content: " + reform.Inspect(n.Content, true)
+	return strings.Join(res, ", ")
 }
 
 func (n News) Values() []interface{} {
@@ -100,13 +104,15 @@ func (n News) Values() []interface{} {
 }
 
 func (n News) Pointers() []interface{} {
-	//TODO implement me
-	panic("implement me")
+	return []interface{}{
+		&n.ID,
+		&n.Title,
+		&n.Content,
+	}
 }
 
 func (n News) View() reform.View {
-	//TODO implement me
-	panic("implement me")
+	return NewsTable
 }
 
 func (n News) Table() reform.Table {
@@ -115,22 +121,17 @@ func (n News) Table() reform.Table {
 }
 
 func (n News) PKValue() interface{} {
-	//TODO implement me
-	panic("implement me")
+	return n.ID
 }
 
 func (n News) PKPointer() interface{} {
-	//TODO implement me
-	panic("implement me")
+	return n.ID
 }
 
 func (n News) HasPK() bool {
-	news := new(News)
-	news.ID = 2
-	return true
+	return n.ID != NewsTable.z[NewsTable.s.PKFieldIndex]
 }
 
 func (n News) SetPK(pk interface{}) {
-	//TODO implement me
-	panic("implement me")
+	reform.SetPK(n, pk)
 }

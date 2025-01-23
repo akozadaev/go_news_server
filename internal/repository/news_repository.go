@@ -3,8 +3,10 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 	"go_news_server/internal/models"
 	"gopkg.in/reform.v1"
+	"gopkg.in/reform.v1/parse"
 )
 
 // https://github.com/go-reform/reform/blob/main/querier_examples_test.go
@@ -24,7 +26,22 @@ func NewNewsRepository(db *reform.DB) NewsRepository {
 
 func (r *newsRepository) GetNews(ctx context.Context) ([]models.News, error) {
 	var news []models.News
-	_, err := r.db.FindAllFrom(models.NewsTable, "ORDER BY Id", &news)
+	str, err := r.db.SelectAllFrom(models.NewsTable, "")
+	for _, n := range str {
+		row := n.(*models.News)
+		str1 := parse.FieldInfo{
+			//Name:   row.ID,
+			Type:   row.Title,
+			Column: row.Content,
+		}
+		fmt.Println(str1)
+	}
+
+	fmt.Println("===============================")
+
+	fmt.Println(str)
+	fmt.Println("===============================")
+	//news, err := r.db.FindAllFrom(models.NewsTable, "id", 1)
 	if err != nil {
 		return nil, err
 	}
