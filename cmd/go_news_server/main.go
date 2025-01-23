@@ -1,17 +1,26 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/joho/godotenv"
+	"go_news_server/internal/handlers"
+	"go_news_server/internal/middleware"
+	"go_news_server/internal/repository"
 	"go_news_server/internal/routes"
 	"go_news_server/internal/server/utils"
+	"go_news_server/internal/services"
 	"go_news_server/pkg/config"
 	"go_news_server/pkg/logging"
+	"gopkg.in/reform.v1"
+	"gopkg.in/reform.v1/dialects/postgresql"
 	_ "net/http/pprof"
 	"os"
 	"time"
 
+	_ "context"
+	_ "github.com/lib/pq"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"go.uber.org/fx"
@@ -73,7 +82,6 @@ func runApplication() {
 			newServer,
 		),
 		fx.Invoke(
-			//shorten.RouteV1,
 			func(r *fiber.App) {},
 		),
 	)
@@ -91,7 +99,25 @@ func newServer(lc fx.Lifecycle, cfg *config.Config) *fiber.App {
 	config := config.FiberConfig()
 	app := fiber.New(config)
 
-	routes.NotFoundRoute(app) // Register a route for API Docs (Swagger).
+	// Get *sql.DB as usual. PostgreSQL example:
+	sqlDB, err := sql.Open("postgres", cfg.DBConfig.DataSourceName)
+	if err != nil {
+		logger.Errorw("Dont open DB", err)
+	}
+	defer sqlDB.Close()
+
+	db := reform.NewDB(sqlDB, postgresql.Dialect, reform.NewPrintfLogger(log.Printf))
+	if err != nil {
+		logger.Errorw("Dont DB connect")
+	}
+	newsRepo := repository.NewNewsRepository(db)
+	newsService := services.NewNewsService(newsRepo)
+	newsHandler := handlers.NewNewsHandler(newsService)
+	middleware.FiberMiddleware(app)
+	//middleware.JWTProtected()
+
+	routes.PublicRoutes(app, newsHandler)
+	routes.NotFoundRoute(app)
 
 	// Start server (with or without graceful shutdown).
 	if os.Getenv("STAGE_STATUS") == "dev" {

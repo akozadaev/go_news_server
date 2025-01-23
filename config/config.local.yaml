@@ -5,7 +5,7 @@ server:
   gracefulShutdown: 30s
   host: "https://news.ru/"
 db:
-  dataSourceName: "host=localhost user=short password=short dbname=short port=5432 sslmode=disable TimeZone=Europe/Moscow"
+  dataSourceName: "host=localhost user=news password=news dbname=news port=5432 sslmode=disable TimeZone=Europe/Moscow"
   logLevel: 2
   pool:
     maxOpen: 50
@@ -28,5 +28,5 @@ logging:
 trace:
   is_enabled: true
   trace_url: "http://localhost:14268/api/traces"
-  trace_service_name: "URL-SHORTINER"
+  trace_service_name: "news-server"
   trace_is_http_body_enabled: true
