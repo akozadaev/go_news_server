@@ -1,12 +1,18 @@
 package main
 
 import (
+	_ "context"
 	"database/sql"
 	"fmt"
 	"github.com/gofiber/fiber/v2"
-	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
+	"github.com/rs/zerolog/log"
+	"github.com/spf13/cobra"
+	"go.uber.org/fx"
+	"go.uber.org/fx/fxevent"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"go_news_server/internal/handlers"
-	"go_news_server/internal/middleware"
 	"go_news_server/internal/repository"
 	"go_news_server/internal/routes"
 	"go_news_server/internal/server/utils"
@@ -17,16 +23,6 @@ import (
 	"gopkg.in/reform.v1/dialects/postgresql"
 	_ "net/http/pprof"
 	"os"
-	"time"
-
-	_ "context"
-	_ "github.com/lib/pq"
-	"github.com/rs/zerolog/log"
-	"github.com/spf13/cobra"
-	"go.uber.org/fx"
-	"go.uber.org/fx/fxevent"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 var serverCmd = &cobra.Command{
@@ -44,40 +40,36 @@ func main() {
 }
 
 func runApplication() {
-	serverConfig, err := config.Load()
+	config, err := config.Load()
 	if err != nil {
 		fmt.Println(err)
 		log.Error().Stack().Err(err)
 	}
 
-	loggerLevel := zapcore.Level(serverConfig.LoggingConfig.Level)
-	if !serverConfig.LoggingConfig.Development {
-		loggerLevel = zapcore.ErrorLevel
-	}
+	loggerLevel := zapcore.Level(config.LogLevel)
 
 	logging.SetConfig(&logging.Config{
-		Encoding:        serverConfig.LoggingConfig.Encoding,
+		Encoding:        config.LogEncoding,
 		Level:           loggerLevel,
-		InfoFilename:    serverConfig.LoggingConfig.InfoFilename,
-		InfoMaxSize:     serverConfig.LoggingConfig.InfoMaxSize,
-		InfoMaxBackups:  serverConfig.LoggingConfig.InfoMaxBackups,
-		InfoMaxAge:      serverConfig.LoggingConfig.InfoMaxAge,
-		InfoCompress:    serverConfig.LoggingConfig.InfoCompress,
-		ErrorFilename:   serverConfig.LoggingConfig.ErrorFilename,
-		ErrorMaxSize:    serverConfig.LoggingConfig.ErrorMaxSize,
-		ErrorMaxBackups: serverConfig.LoggingConfig.ErrorMaxBackups,
-		ErrorMaxAge:     serverConfig.LoggingConfig.ErrorMaxAge,
-		ErrorCompress:   serverConfig.LoggingConfig.ErrorCompress,
+		InfoFilename:    config.LogInfoFilename,
+		InfoMaxSize:     config.LogInfoMaxSize,
+		InfoMaxBackups:  config.LogInfoMaxBackups,
+		InfoMaxAge:      config.LogInfoMaxAge,
+		InfoCompress:    config.LogInfoCompress,
+		ErrorFilename:   config.LogErrorFilename,
+		ErrorMaxSize:    config.LogErrorMaxSize,
+		ErrorMaxBackups: config.LogErrorMaxBackups,
+		ErrorMaxAge:     config.LogErrorMaxAge,
+		ErrorCompress:   config.LogErrorCompress,
 	})
 	defer logging.DefaultLogger().Sync()
 
 	app := fx.New(
-		fx.Supply(serverConfig),
+		fx.Supply(config),
 		fx.Supply(logging.DefaultLogger().Desugar()),
 		fx.WithLogger(func(log *zap.Logger) fxevent.Logger {
 			return &fxevent.ZapLogger{Logger: log.Named("fx")}
 		}),
-		fx.StopTimeout(serverConfig.ServerConfig.GracefulShutdown*time.Second),
 		fx.Provide(
 			newServer,
 		),
@@ -92,15 +84,11 @@ func runApplication() {
 func newServer(lc fx.Lifecycle, cfg *config.Config) *fiber.App {
 	logger := logging.DefaultLogger()
 
-	if err := godotenv.Load(".env"); err != nil {
-		logger.Errorw("Dont reading .env file")
-	}
-
-	config := config.FiberConfig()
-	app := fiber.New(config)
+	fiberConfig := config.FiberConfig(cfg.ServerReadTimeout)
+	app := fiber.New(fiberConfig)
 
 	// Get *sql.DB as usual. PostgreSQL example:
-	sqlDB, err := sql.Open("postgres", cfg.DBConfig.DataSourceName)
+	sqlDB, err := sql.Open("postgres", cfg.DataSourceName)
 	if err != nil {
 		logger.Errorw("Dont open DB", err)
 	}
@@ -110,21 +98,22 @@ func newServer(lc fx.Lifecycle, cfg *config.Config) *fiber.App {
 	if err != nil {
 		logger.Errorw("Dont DB connect")
 	}
-	newsRepo := repository.NewNewsRepository(db)
-	newsService := services.NewNewsService(newsRepo)
-	newsHandler := handlers.NewNewsHandler(newsService)
-	middleware.FiberMiddleware(app)
-	//middleware.JWTProtected()
+
+	newsRepo := &repository.NewsRepository{DB: db}
+	newsService := &services.NewsService{Repository: newsRepo}
+	newsHandler := &handlers.NewsHandlers{Service: newsService}
 
 	routes.PublicRoutes(app, newsHandler)
+	routes.PrivateRoutes(app, newsHandler)
 	routes.NotFoundRoute(app)
 
 	// Start server (with or without graceful shutdown).
 	if os.Getenv("STAGE_STATUS") == "dev" {
-		utils.StartServer(app, logger)
+		utils.StartServer(app, logger, cfg)
 	} else {
-		utils.StartServerWithGracefulShutdown(app, logger)
+		utils.StartServerWithGracefulShutdown(app, logger, cfg)
 	}
-	logger.Infof("Start to rest api server :%d", cfg.ServerConfig.Port)
+	logger.Infof("Start to rest api server :%d", cfg.DBPort)
+
 	return app
 }

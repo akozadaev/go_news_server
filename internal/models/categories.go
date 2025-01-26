@@ -8,14 +8,14 @@ import (
 //go:generate reform
 
 type NewsCategories struct {
-	NewsID     int64 `reform:"News_Id,pk"`
-	CategoryID int64 `reform:"Category_Id,pk"`
+	news_Id     int64 `reform:"News_Id,pk"`
+	category_id int64 `reform:"Category_Id,pk"`
 }
 
 func (n NewsCategories) String() string {
 	res := make([]string, 6)
-	res[0] = "NewsID: " + reform.Inspect(n.NewsID, true)
-	res[1] = "CategoryID: " + reform.Inspect(n.CategoryID, true)
+	res[0] = "news_Id: " + reform.Inspect(n.news_Id, true)
+	res[1] = "category_id: " + reform.Inspect(n.category_id, true)
 	return strings.Join(res, ", ")
 }
 

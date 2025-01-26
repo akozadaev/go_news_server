@@ -2,56 +2,75 @@ package repository
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"go_news_server/internal/models"
 	"gopkg.in/reform.v1"
-	"gopkg.in/reform.v1/parse"
 )
 
-// https://github.com/go-reform/reform/blob/main/querier_examples_test.go
-
-type NewsRepository interface {
-	GetNews(ctx context.Context) ([]models.News, error)
-	UpdateNews(ctx context.Context, news *models.News) error
+type NewsRepository struct {
+	DB *reform.DB
 }
 
-type newsRepository struct {
-	db *reform.DB
-}
-
-func NewNewsRepository(db *reform.DB) NewsRepository {
-	return &newsRepository{db: db}
-}
-
-func (r *newsRepository) GetNews(ctx context.Context) ([]models.News, error) {
-	var news []models.News
-	str, err := r.db.SelectAllFrom(models.NewsTable, "")
-	for _, n := range str {
-		row := n.(*models.News)
-		str1 := parse.FieldInfo{
-			//Name:   row.ID,
-			Type:   row.Title,
-			Column: row.Content,
-		}
-		fmt.Println(str1)
+func (r *NewsRepository) UpdateNews(ctx context.Context, news *models.News) error {
+	tx, err := r.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
 	}
 
-	fmt.Println("===============================")
+	defer tx.Rollback()
 
-	fmt.Println(str)
-	fmt.Println("===============================")
-	//news, err := r.db.FindAllFrom(models.NewsTable, "id", 1)
+	if news.Title != "" {
+		_, err = tx.ExecContext(ctx, "UPDATE News SET Title = $1 WHERE Id = $2", news.Title, news.Id)
+		if err != nil {
+			return err
+		}
+	}
+
+	if news.Content != "" {
+		_, err = tx.ExecContext(ctx, "UPDATE News SET Content = $1 WHERE Id = $2", news.Content, news.Id)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = tx.ExecContext(ctx, "DELETE FROM NewsCategories WHERE news_id = $1", news.Id)
+	if err != nil {
+		return err
+	}
+
+	for _, category := range news.Categories {
+		_, err = tx.ExecContext(ctx, "INSERT INTO NewsCategories (news_Id, category_id) VALUES ($1, $1)", news.Id, category)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+func (r *NewsRepository) GetNewsList(ctx context.Context, limit, offset int) ([]models.News, error) {
+	rows, err := r.DB.QueryContext(ctx, `
+		SELECT n.Id, n.Title, n.Content, 
+               array_agg(nc.category_id) as Categories
+        FROM News n
+        LEFT JOIN NewsCategories nc ON n.Id = nc.news_id
+        GROUP BY n.Id
+        LIMIT $1 OFFSET $2`, limit, offset)
+
 	if err != nil {
 		return nil, err
 	}
-	return news, nil
-}
+	defer rows.Close()
 
-func (r *newsRepository) UpdateNews(ctx context.Context, news *models.News) error {
-	if news.ID == 0 {
-		return errors.New("invalid ID")
+	var newsList []models.News
+	for rows.Next() {
+		var news models.News
+		var categories string
+		if err := rows.Scan(&news.Id, &news.Title, &news.Content, &categories); err != nil {
+			return nil, err
+		}
+
+		newsList = append(newsList, news)
 	}
-	err := r.db.Update(news)
-	return err
+
+	return newsList, nil
 }

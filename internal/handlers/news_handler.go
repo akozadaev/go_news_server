@@ -1,43 +1,61 @@
 package handlers
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"context"
+	"fmt"
 	"go_news_server/internal/models"
 	"go_news_server/internal/services"
 	"strconv"
+
+	"github.com/gofiber/fiber/v2"
 )
 
-type NewsHandler struct {
-	service services.NewsService
+type NewsHandlers struct {
+	Service *services.NewsService
 }
 
-func NewNewsHandler(service services.NewsService) *NewsHandler {
-	return &NewsHandler{service: service}
-}
-
-func (h *NewsHandler) GetNewsList(c *fiber.Ctx) error {
-	news, err := h.service.GetNews(c.Context())
+func (h *NewsHandlers) EditNewsHandler(c *fiber.Ctx) error {
+	id, err := strconv.ParseInt(c.Params("Id"), 10, 64)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid ID")
 	}
-	return c.JSON(fiber.Map{"Success": true, "News": news})
+
+	var payload struct {
+		Title      *string `json:"Title"`
+		Content    *string `json:"Content"`
+		Categories []int64 `json:"Categories"`
+	}
+
+	if err := c.BodyParser(&payload); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid request body")
+	}
+
+	news := &models.News{Id: id}
+	if payload.Title != nil {
+		news.Title = *payload.Title
+	}
+	if payload.Content != nil {
+		news.Content = *payload.Content
+	}
+	fmt.Println("===========")
+	fmt.Println(news)
+	fmt.Println("===========")
+	if err := h.Service.UpdateNews(context.Background(), news /*, payload.Categories*/); err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(fiber.Map{"success": true})
 }
 
-func (h *NewsHandler) EditNews(c *fiber.Ctx) error {
-	id, err := strconv.Atoi(c.Params("Id"))
+// GetNewsList возвращает список новостей.
+func (h *NewsHandlers) GetNewsList(c *fiber.Ctx) error {
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+	offset, _ := strconv.Atoi(c.Query("offset", "0"))
+
+	newsList, err := h.Service.GetNewsList(context.Background(), limit, offset)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid ID"})
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	var news models.News
-	if err := c.BodyParser(&news); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid payload"})
-	}
-
-	news.ID = int64(id)
-	if err := h.service.UpdateNews(c.Context(), &news); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
-	}
-
-	return c.JSON(fiber.Map{"Success": true})
+	return c.JSON(fiber.Map{"success": true, "news": newsList})
 }

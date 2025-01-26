@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/gofiber/fiber/v2"
@@ -17,6 +18,7 @@ func JWTProtected() func(*fiber.Ctx) error {
 		ContextKey:   "jwt", // used in private routes
 		ErrorHandler: jwtError,
 	}
+	fmt.Println(config)
 
 	return jwtMiddleware.New(config)
 }
