@@ -115,14 +115,40 @@ ______________
 
 Реализованы 4 маршрута. Два без авторизации:
 [GET] localhost:8181/list?limit=1&offset=0
-[POST] localhost:8181/edit/1
-body:
+
+ответ:
+
 ```{
+    "news": [
+        {
+            "id": 1,
+            "title": "title1",
+            "content": "content2",
+            "categories": null
+        }
+    ],
+    "success": true
+}
+```
+[POST] localhost:8181/edit/1
+
+body:
+
+```
+{
     "id": 1,
     "Title": "title1",
     "Content": "content2",
     "categories": [1,2]
-}```
+}
+```
+ответ:
+
+```
+{
+    "success": true
+}
+```
 
 Два с авторизацией:
 [GET] localhost:8181/private/list?limit=1&offset=0
