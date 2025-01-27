@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"fmt"
 	"go_news_server/internal/models"
 	"go_news_server/internal/services"
 	"strconv"
@@ -37,9 +36,6 @@ func (h *NewsHandlers) EditNewsHandler(c *fiber.Ctx) error {
 	if payload.Content != nil {
 		news.Content = *payload.Content
 	}
-	fmt.Println("===========")
-	fmt.Println(news)
-	fmt.Println("===========")
 	if err := h.Service.UpdateNews(context.Background(), news /*, payload.Categories*/); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}

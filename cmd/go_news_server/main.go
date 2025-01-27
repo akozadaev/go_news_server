@@ -104,7 +104,7 @@ func newServer(lc fx.Lifecycle, cfg *config.Config) *fiber.App {
 	newsHandler := &handlers.NewsHandlers{Service: newsService}
 
 	routes.PublicRoutes(app, newsHandler)
-	routes.PrivateRoutes(app, newsHandler)
+	routes.PrivateRoutes(app, newsHandler, cfg)
 	routes.NotFoundRoute(app)
 
 	// Start server (with or without graceful shutdown).

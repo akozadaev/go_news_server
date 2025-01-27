@@ -102,6 +102,7 @@ type Config struct {
 	LogErrorCompress   bool
 	DataSourceName     string
 	Listen             string
+	SecretKey          string
 }
 
 func Load() (*Config, error) {
@@ -114,27 +115,29 @@ func Load() (*Config, error) {
 	}
 
 	return &Config{
-		DBHost:             viper.GetString("DB_HOST"),
-		DBPort:             viper.GetInt("DB_PORT"),
-		DBUser:             viper.GetString("DB_USER"),
-		DBPassword:         viper.GetString("DB_PASSWORD"),
-		DBName:             viper.GetString("DB_NAME"),
-		ServeHost:          viper.GetString("SERVER_HOST"),
-		ServerPort:         viper.GetInt("SERVER_PORT"),
-		ServerReadTimeout:  viper.GetInt("SERVER_READ_TIMEOUT"),
-		LogLevel:           viper.GetInt("level"),
-		LogEncoding:        viper.GetString("encoding"),
-		LogInfoFilename:    viper.GetString("info_filename"),
-		LogInfoMaxSize:     viper.GetInt("info_max_size"),
-		LogInfoMaxBackups:  viper.GetInt("info_max_backups"),
-		LogInfoMaxAge:      viper.GetInt("info_max_age"),
-		LogInfoCompress:    viper.GetBool("info_compress"),
-		LogErrorFilename:   viper.GetString("error_filename"),
+		DBHost:            viper.GetString("DB_HOST"),
+		DBPort:            viper.GetInt("DB_PORT"),
+		DBUser:            viper.GetString("DB_USER"),
+		DBPassword:        viper.GetString("DB_PASSWORD"),
+		DBName:            viper.GetString("DB_NAME"),
+		ServeHost:         viper.GetString("SERVER_HOST"),
+		ServerPort:        viper.GetInt("SERVER_PORT"),
+		ServerReadTimeout: viper.GetInt("SERVER_READ_TIMEOUT"),
+		LogLevel:          viper.GetInt("level"),
+		LogEncoding:       viper.GetString("encoding"),
+		LogInfoFilename:   viper.GetString("info_filename"),
+		LogInfoMaxSize:    viper.GetInt("info_max_size"),
+		LogInfoMaxBackups: viper.GetInt("info_max_backups"),
+		LogInfoMaxAge:     viper.GetInt("info_max_age"),
+		LogInfoCompress:   viper.GetBool("info_compress"),
+		LogErrorFilename:  viper.GetString("error_filename"),
+
 		LogErrorMaxSize:    viper.GetInt("error_max_size"),
 		LogErrorMaxBackups: viper.GetInt("error_max_backups"),
 		LogErrorMaxAge:     viper.GetInt("error_max_age"),
 		LogErrorCompress:   viper.GetBool("error_compress"),
 		DataSourceName:     fmt.Sprintf("host=%v user=%v password=%v dbname=%v port=%v sslmode=disable TimeZone=Europe/Moscow", viper.GetString("SERVER_HOST"), viper.GetString("DB_USER"), viper.GetString("DB_PASSWORD"), viper.GetString("DB_NAME"), viper.GetInt("DB_PORT")),
 		Listen:             fmt.Sprintf("%v:%v", viper.GetString("SERVER_HOST"), viper.GetInt("SERVER_PORT")),
+		SecretKey:          viper.GetString("SECRET_KEY"),
 	}, nil
 }
