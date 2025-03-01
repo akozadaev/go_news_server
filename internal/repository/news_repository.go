@@ -74,3 +74,20 @@ func (r *NewsRepository) GetNewsList(ctx context.Context, limit, offset int) ([]
 
 	return newsList, nil
 }
+
+func (r *NewsRepository) AddNews(ctx context.Context, news *models.News) error {
+	tx, err := r.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if news.Title != "" && news.Content != "" {
+		_, err = tx.ExecContext(ctx,
+			"insert into news (title, content) VALUES ($1, $2)",
+			news.Title, news.Content)
+		if err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}

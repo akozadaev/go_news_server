@@ -17,3 +17,7 @@ func (s *NewsService) UpdateNews(ctx context.Context, news *models.News) error {
 func (s *NewsService) GetNewsList(ctx context.Context, limit, offset int) ([]models.News, error) {
 	return s.Repository.GetNewsList(ctx, limit, offset)
 }
+
+func (s *NewsService) AddNews(ctx context.Context, news *models.News) error {
+	return s.Repository.AddNews(ctx, news)
+}
