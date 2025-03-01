@@ -55,3 +55,29 @@ func (h *NewsHandlers) GetNewsList(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"success": true, "news": newsList})
 }
+
+func (h *NewsHandlers) AddNews(c *fiber.Ctx) error {
+	var payload struct {
+		Title   *string `json:"Title"`
+		Content *string `json:"Content"`
+	}
+	if err := c.BodyParser(&payload); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid request body")
+	}
+
+	news := &models.News{}
+	if payload.Title == nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid title")
+	}
+	news.Title = *payload.Title
+	if payload.Content == nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid content")
+	}
+	news.Content = *payload.Content
+
+	if err := h.Service.AddNews(context.Background(), news); err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(fiber.Map{"success": true})
+}
