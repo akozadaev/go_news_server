@@ -1,19 +1,31 @@
 package middleware
 
 import (
-	"os"
-
-	"github.com/gofiber/fiber/v2"
-
+	"fmt"
 	jwtMiddleware "github.com/gofiber/contrib/jwt"
+	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // JWTProtected func for specify routes group with JWT authentication.
 // See: https://github.com/gofiber/contrib/jwt
-func JWTProtected() func(*fiber.Ctx) error {
-	// Create config for JWT authentication middleware.
+func JWTProtected(secretKey string) func(*fiber.Ctx) error {
+
+	token := jwt.New(jwt.SigningMethodHS256)
+	claims := make(jwt.MapClaims)
+
+	claims["sub"] = "5"
+	claims["name"] = "akozadaev"
+
+	token.Claims = claims
+	signature := []byte(secretKey)
+	fmt.Println("signature : ", signature)
+	tokenString, err := token.SignedString(signature)
+	fmt.Println(tokenString)
+	fmt.Println(err)
+
 	config := jwtMiddleware.Config{
-		SigningKey:   jwtMiddleware.SigningKey{Key: []byte(os.Getenv("JWT_SECRET_KEY"))},
+		SigningKey:   jwtMiddleware.SigningKey{Key: signature},
 		ContextKey:   "jwt", // used in private routes
 		ErrorHandler: jwtError,
 	}

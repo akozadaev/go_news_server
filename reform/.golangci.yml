@@ -1,0 +1,48 @@
+---
+# Almost all linters; some of them are optional.
+
+run:
+  skip-dirs:
+    - bogus
+
+linters-settings:
+  govet:
+    check-shadowing: true
+  goimports:
+    local-prefixes: gopkg.in/reform.v1
+
+linters:
+  enable-all: true
+  disable:
+    - goerr113     # reform v1 should not wrap errors to keep SemVer compatibility
+    - golint       # deprecated
+    - gomnd        # too annoying
+    - interfacer   # deprecated
+    - lll          # too annoying
+    - maligned     # deprecated
+    - nlreturn     # too annoying
+    - scopelint    # deprecated
+    - wrapcheck    # reform v1 should not wrap errors to keep SemVer compatibility
+    - wsl          # too annoying
+
+issues:
+  exclude-use-default: false
+  exclude:
+    # gosec - we are making an ORM after all
+    - "G201: SQL string formatting"
+    - "G202: SQL string concatenation"
+
+    # # golint - matches database/sql.Result.LastInsertId()
+    # # > method LastInsertIdMethod should be LastInsertIDMethod
+    # # > type `LastInsertIdMethod` should be `LastInsertIDMethod`
+    # # > var `lastInsertIdMethod` should be `lastInsertIDMethod`
+    # - "`?LastInsertIdMethod`? should be `?LastInsertIDMethod`?"
+
+  exclude-rules:
+    # - path: internal/test/models/
+    #   linters:
+    #     - golint
+    - path: _test\.go
+      linters:
+        - funlen       # tests may be long
+        - testpackage  # senseless

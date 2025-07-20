@@ -1,0 +1,12 @@
+/.vscode/
+/.idea/
+
+/bin/
+
+docker-compose.override.yml
+
+*.tmp.sql
+*.sqlite3
+
+*.cover
+coverage.txt

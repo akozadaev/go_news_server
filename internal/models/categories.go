@@ -1,35 +1,40 @@
 package models
 
 import (
-	"gopkg.in/reform.v1"
-	"strings"
+	"time"
 )
 
-//go:generate reform
-
-type NewsCategories struct {
-	NewsID     int64 `reform:"News_Id,pk"`
-	CategoryID int64 `reform:"Category_Id,pk"`
+// Category представляет категорию новостей
+type Category struct {
+	Id          int64     `json:"id" db:"Id"`
+	Name        string    `json:"name" db:"Name"`
+	Description string    `json:"description" db:"Description"`
+	CreatedAt   time.Time `json:"created_at" db:"CreatedAt"`
+	UpdatedAt   time.Time `json:"updated_at" db:"UpdatedAt"`
 }
 
-func (n NewsCategories) String() string {
-	res := make([]string, 6)
-	res[0] = "NewsID: " + reform.Inspect(n.NewsID, true)
-	res[1] = "CategoryID: " + reform.Inspect(n.CategoryID, true)
-	return strings.Join(res, ", ")
+// CategoryCreateRequest представляет запрос на создание категории
+type CategoryCreateRequest struct {
+	Name        string `json:"name" validate:"required,min=1,max=100"`
+	Description string `json:"description"`
 }
 
-func (n NewsCategories) Values() []interface{} {
-	//TODO implement me
-	panic("implement me")
+// CategoryUpdateRequest представляет запрос на обновление категории
+type CategoryUpdateRequest struct {
+	Name        string `json:"name" validate:"required,min=1,max=100"`
+	Description string `json:"description"`
 }
 
-func (n NewsCategories) Pointers() []interface{} {
-	//TODO implement me
-	panic("implement me")
+// CategoryResponse представляет ответ с категорией
+type CategoryResponse struct {
+	Success  bool      `json:"success"`
+	Category *Category `json:"category,omitempty"`
+	Message  string    `json:"message,omitempty"`
 }
 
-func (n NewsCategories) View() reform.View {
-	//TODO implement me
-	panic("implement me")
+// CategoriesResponse представляет ответ со списком категорий
+type CategoriesResponse struct {
+	Success    bool       `json:"success"`
+	Categories []Category `json:"categories"`
+	Total      int64      `json:"total"`
 }

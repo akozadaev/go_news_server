@@ -1,3 +1,7 @@
 .idea
 
 /logs/*
+./CHANGELOG.md
+./.gitignore
+./QUICKSTART.md
+./create.md

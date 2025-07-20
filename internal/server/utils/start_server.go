@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"fmt"
 	"go.uber.org/zap"
+	"go_news_server/pkg/config"
 	"log"
 	"os"
 	"os/signal"
@@ -10,7 +12,7 @@ import (
 )
 
 // StartServerWithGracefulShutdown function for starting server with a graceful shutdown.
-func StartServerWithGracefulShutdown(a *fiber.App, logger *zap.SugaredLogger) {
+func StartServerWithGracefulShutdown(a *fiber.App, logger *zap.SugaredLogger, cfg *config.Config) {
 	// Create channel for idle connections.
 	idleConnsClosed := make(chan struct{})
 
@@ -28,8 +30,11 @@ func StartServerWithGracefulShutdown(a *fiber.App, logger *zap.SugaredLogger) {
 		close(idleConnsClosed)
 	}()
 
-	// Build Fiber connection URL.
-	fiberConnURL, _ := ConnectionURLBuilder("fiber")
+	fiberConnURL := fmt.Sprintf(
+		"%v:%v",
+		cfg.ServeHost,
+		cfg.ServerPort,
+	)
 
 	// Run server.
 	if err := a.Listen(fiberConnURL); err != nil {
@@ -40,9 +45,12 @@ func StartServerWithGracefulShutdown(a *fiber.App, logger *zap.SugaredLogger) {
 }
 
 // StartServer func for starting a simple server.
-func StartServer(a *fiber.App, logger *zap.SugaredLogger) {
-	// Build Fiber connection URL.
-	fiberConnURL, _ := ConnectionURLBuilder("fiber")
+func StartServer(a *fiber.App, logger *zap.SugaredLogger, cfg *config.Config) {
+	fiberConnURL := fmt.Sprintf(
+		"%v:%v",
+		cfg.ServeHost,
+		cfg.ServerPort,
+	)
 
 	// Run server.
 	if err := a.Listen(fiberConnURL); err != nil {

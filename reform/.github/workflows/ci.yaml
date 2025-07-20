@@ -1,0 +1,255 @@
+---
+name: CI
+on:
+  schedule:
+    # Saturday 8:00, after cleanup
+    - cron: "0 8 * * 6"
+  push:
+    branches:
+      - main
+      - hotfix/**
+      - release/**
+  pull_request:
+
+jobs:
+  # test job
+  test:
+    name: Test
+    timeout-minutes: 10
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-20.04
+        go-version:
+          - 1.17.x
+          - tip
+        images:
+          - { postgres: "postgres:9.5", mysql: "mysql:5.6", mssql: "mcr.microsoft.com/mssql/server:2017-latest" }
+          - { postgres: "postgres:9.6", mysql: "mysql:5.7", mssql: "mcr.microsoft.com/mssql/server:2019-latest" }
+          - { postgres: "postgres:10",  mysql: "mysql:8.0" }
+          - { postgres: "postgres:11" }
+          - { postgres: "postgres:12" }
+          - { postgres: "postgres:13" }
+
+    runs-on: ${{ matrix.os }}
+
+    env:
+      # no `-mod=readonly` to test PRs made by @dependabot;
+      # `make ci-check-changes` step below still checks what we need
+      WORKDIR: "${{ github.workspace }}/gopath/src/gopkg.in/reform.v1"
+      GOPATH: "${{ github.workspace }}/gopath"
+      GOBIN: "${{ github.workspace }}/gopath/bin"
+      GO111MODULE: "on"
+      GOPROXY: "https://proxy.golang.org"
+      GORACE: "halt_on_error=1"
+      REFORM_POSTGRES_IMAGE: "${{ matrix.images.postgres }}"
+      REFORM_MYSQL_IMAGE: "${{ matrix.images.mysql }}"
+      REFORM_MSSQL_IMAGE: "${{ matrix.images.mssql }}"
+
+    steps:
+      # Cache Go modules, build cache, installed packages and GOPATH sources
+      # to significantly decreases total CI time. See also cleanup.yaml.
+      - name: Enable Go cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/go-build
+            ${{ env.GOPATH }}/pkg
+            ${{ env.GOPATH }}/src/github.com
+            ${{ env.GOPATH }}/src/golang.org
+          key: ${{ matrix.os }}-${{ matrix.go-version }}
+
+      - name: Set up Go version ${{ matrix.go-version }}
+        if: matrix.go-version != 'tip'
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Set up Go tip
+        if: matrix.go-version == 'tip'
+        run: |
+          git clone --depth=1 https://go.googlesource.com/go $HOME/gotip
+          cd $HOME/gotip/src
+          ./make.bash
+          echo "GOROOT=$HOME/gotip" >> $GITHUB_ENV
+          echo "$HOME/gotip/bin" >> $GITHUB_PATH
+          echo "$GOBIN" >> $GITHUB_PATH
+
+      - name: Set GO_VERSION
+        run: echo "GO_VERSION=$(go version)" >> $GITHUB_ENV
+
+      - name: Check out code into GOPATH
+        uses: actions/checkout@v2
+        with:
+          path: ${{ env.WORKDIR }}
+
+      - name: Pull Docker images
+        working-directory: ${{ env.WORKDIR }}
+        run: docker-compose pull
+
+      - name: Stop Ubuntu services
+        run: sudo systemctl stop mysql
+
+      # FIXME Is there a more ergonomic way?
+      - name: Update Go language version in the module
+        working-directory: ${{ env.WORKDIR }}
+        run: go mod edit -go=$(go list -f '{{ $tag := 0 }}{{ range $tag = context.ReleaseTags }}{{ end }}{{ slice $tag 2 }}' runtime)
+
+      - name: Download Go modules
+        working-directory: ${{ env.WORKDIR }}
+        run: go mod download
+
+      - name: Check that it is still possible to install reform without modules
+        working-directory: ${{ env.WORKDIR }}
+        run: |
+          env GO111MODULE=off go get -v -x ./...
+          reform -version
+          reform-db -version
+
+      - name: Run init target
+        working-directory: ${{ env.WORKDIR }}
+        run: make init
+
+      - name: Start development environment
+        working-directory: ${{ env.WORKDIR }}
+        run: make env-up-detach
+
+      - name: Run test target
+        working-directory: ${{ env.WORKDIR }}
+        run: make test
+
+      # TODO test again with updated deps
+
+      - name: Clean Go test cache
+        if: ${{ always() }}
+        run: go clean -testcache
+
+      # to ensure that all generators still work the same way
+      - name: Check that there are no source code changes
+        working-directory: ${{ env.WORKDIR }}
+        run: make ci-check-changes
+
+      - name: Upload coverage information
+        working-directory: ${{ env.WORKDIR }}
+        run: bash <(curl -s https://codecov.io/bash) -f coverage.txt -X fix -e GO_VERSION,REFORM_POSTGRES_IMAGE,REFORM_MYSQL_IMAGE,REFORM_MSSQL_IMAGE
+
+      - name: Run debug commands on failure
+        if: ${{ failure() }}
+        run: |
+          sudo apt-get install -qy tree
+          env
+          go version
+          go env
+          pwd
+          tree -d
+          ls -al
+          docker --version
+          docker-compose --version
+
+  # lint job
+  lint:
+    name: Lint
+    timeout-minutes: 10
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-20.04
+        go-version:
+          - 1.17.x
+
+    runs-on: ${{ matrix.os }}
+
+    env:
+      # no `-mod=readonly` to test PRs made by @dependabot;
+      # `make ci-check-changes` step below still checks what we need
+      WORKDIR: "${{ github.workspace }}/gopath/src/gopkg.in/reform.v1"
+      GOPATH: "${{ github.workspace }}/gopath"
+      GOBIN: "${{ github.workspace }}/gopath/bin"
+      GO111MODULE: "on"
+      GOPROXY: "https://proxy.golang.org"
+      GORACE: "halt_on_error=1"
+      REFORM_POSTGRES_IMAGE: "${{ matrix.images.postgres }}"
+      REFORM_MYSQL_IMAGE: "${{ matrix.images.mysql }}"
+      REFORM_MSSQL_IMAGE: "${{ matrix.images.mssql }}"
+
+    steps:
+      # Cache Go modules, build cache, installed packages and GOPATH sources
+      # to significantly decreases total CI time. See also cleanup.yaml.
+      - name: Enable Go cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/go-build
+            ${{ env.GOPATH }}/pkg
+            ${{ env.GOPATH }}/src/github.com
+            ${{ env.GOPATH }}/src/golang.org
+          key: ${{ matrix.os }}-${{ matrix.go-version }}
+
+      - name: Set up Go version ${{ matrix.go-version }}
+        if: matrix.go-version != 'tip'
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Set up Go tip
+        if: matrix.go-version == 'tip'
+        run: |
+          git clone --depth=1 https://go.googlesource.com/go $HOME/gotip
+          cd $HOME/gotip/src
+          ./make.bash
+          echo "GOROOT=$HOME/gotip" >> $GITHUB_ENV
+          echo "$HOME/gotip/bin" >> $GITHUB_PATH
+          echo "$GOBIN" >> $GITHUB_PATH
+
+      - name: Set GO_VERSION
+        run: echo "GO_VERSION=$(go version)" >> $GITHUB_ENV
+
+      - name: Check out code into GOPATH
+        uses: actions/checkout@v2
+        with:
+          path: ${{ env.WORKDIR }}
+
+      # FIXME Is there a more ergonomic way?
+      - name: Update Go language version in the module
+        working-directory: ${{ env.WORKDIR }}
+        run: go mod edit -go=$(go list -f '{{ $tag := 0 }}{{ range $tag = context.ReleaseTags }}{{ end }}{{ slice $tag 2 }}' runtime)
+
+      - name: Download Go modules
+        working-directory: ${{ env.WORKDIR }}
+        run: go mod download
+
+      - name: Run init target
+        working-directory: ${{ env.WORKDIR }}
+        run: make init
+
+      - name: Run checks/linters
+        working-directory: ${{ env.WORKDIR }}
+        run: |
+          # use GITHUB_TOKEN because only it has access to GitHub Checks API
+          bin/golangci-lint run --config=.golangci-required.yml --out-format=line-number | env REVIEWDOG_GITHUB_API_TOKEN=${{ secrets.GITHUB_TOKEN }} bin/reviewdog -f=golangci-lint -name='Required linters' -reporter=github-check
+
+          # use GO_REFORM_BOT_TOKEN for better reviewer's name
+          bin/golangci-lint run --out-format=line-number | env REVIEWDOG_GITHUB_API_TOKEN=${{ secrets.GO_REFORM_BOT_TOKEN }} bin/reviewdog -f=golangci-lint -name='Optional linters' -reporter=github-pr-review
+          bin/go-consistent -pedantic ./...              | env REVIEWDOG_GITHUB_API_TOKEN=${{ secrets.GO_REFORM_BOT_TOKEN }} bin/reviewdog -f=go-consistent -name='go-consistent'    -reporter=github-pr-review
+
+      # to ensure that all generators still work the same way
+      - name: Check that there are no source code changes
+        working-directory: ${{ env.WORKDIR }}
+        run: make ci-check-changes
+
+      - name: Run debug commands on failure
+        if: ${{ failure() }}
+        run: |
+          sudo apt-get install -qy tree
+          env
+          go version
+          go env
+          pwd
+          tree -d
+          ls -al
+          docker --version
+          docker-compose --version
