@@ -80,6 +80,10 @@ func TestEditNewsHandler(t *testing.T) {
 			req.Header.Set("Content-Type", "application/json")
 
 			resp, _ := app.Test(req)
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+				}
+			}()
 
 			assert.Equal(t, tt.expectedStatus, resp.StatusCode)
 
@@ -108,11 +112,16 @@ func TestGetNewsList(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/list", nil)
 	resp, _ := app.Test(req)
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+		}
+	}()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
+	err := json.NewDecoder(resp.Body).Decode(&result)
+	assert.NoError(t, err)
 
 	assert.True(t, result["Success"].(bool))
 	assert.NotNil(t, result["News"])

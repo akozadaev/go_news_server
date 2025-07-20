@@ -19,7 +19,10 @@ func (r *NewsRepository) UpdateNews(ctx context.Context, news *models.News, cate
 		return err
 	}
 
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+		}
+	}()
 
 	// Update news fields if they are not empty
 	if news.Title != "" {
@@ -66,7 +69,10 @@ func (r *NewsRepository) GetNewsList(ctx context.Context, limit, offset int) ([]
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+		}
+	}()
 
 	var newsList []models.News
 	for rows.Next() {

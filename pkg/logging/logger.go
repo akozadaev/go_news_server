@@ -4,15 +4,11 @@ import (
 	"os"
 	"sync"
 
-	//"github.com/gin-gonic/gin"
+	// "github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
-
-type contextKey = string
-
-const loggerKey = contextKey("logger")
 
 var (
 	// defaultLogger is the default logger. It is initialized once per package
@@ -78,17 +74,17 @@ func NewLogger(conf *Config) *zap.SugaredLogger {
 
 	wsInfo := zapcore.AddSync(&lumberjack.Logger{
 		Filename:   conf.InfoFilename,
-		MaxSize:    conf.InfoMaxSize, //MB
+		MaxSize:    conf.InfoMaxSize, // MB
 		MaxBackups: conf.InfoMaxBackups,
-		MaxAge:     conf.InfoMaxAge, //days
+		MaxAge:     conf.InfoMaxAge, // days
 		Compress:   conf.InfoCompress,
 	})
 
 	wsError := zapcore.AddSync(&lumberjack.Logger{
 		Filename:   conf.ErrorFilename,
-		MaxSize:    conf.ErrorMaxSize, //MB
+		MaxSize:    conf.ErrorMaxSize, // MB
 		MaxBackups: conf.ErrorMaxBackups,
-		MaxAge:     conf.ErrorMaxAge, //days
+		MaxAge:     conf.ErrorMaxAge, // days
 		Compress:   conf.ErrorCompress,
 	})
 	coreInfo := zapcore.NewCore(
@@ -106,7 +102,10 @@ func NewLogger(conf *Config) *zap.SugaredLogger {
 	cores := zapcore.NewTee(coreInfo, coreError)
 
 	logger := zap.New(cores)
-	defer logger.Sync()
+	defer func() {
+		if err := logger.Sync(); err != nil {
+		}
+	}()
 
 	return logger.Sugar()
 }

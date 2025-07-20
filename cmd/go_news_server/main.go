@@ -63,7 +63,10 @@ func runApplication() {
 		ErrorMaxAge:     config.LogErrorMaxAge,
 		ErrorCompress:   config.LogErrorCompress,
 	})
-	defer logging.DefaultLogger().Sync()
+	defer func() {
+		if err := logging.DefaultLogger().Sync(); err != nil {
+		}
+	}()
 
 	app := fx.New(
 		fx.Supply(config),

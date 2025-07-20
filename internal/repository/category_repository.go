@@ -81,7 +81,10 @@ func (r *CategoryRepository) GetAllCategories(ctx context.Context, limit, offset
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+		}
+	}()
 
 	var categories []models.Category
 	for rows.Next() {
@@ -158,7 +161,10 @@ func (r *CategoryRepository) GetCategoriesByNewsID(ctx context.Context, newsID i
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+		}
+	}()
 
 	var categories []models.Category
 	for rows.Next() {
